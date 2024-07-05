@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Controle de Pagamento de Imóvel</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background-color: #f4f4f9;
+    }
+
+    .container {
+      background-color: #ffffff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+    }
+
+    h1,
+    h2 {
+      color: #333;
+    }
+
+    label {
+      display: block;
+      margin: 10px 0 5px;
+      color: #555;
+    }
+
+    input,
+    button {
+      padding: 10px;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    button {
+      background-color: #5cb85c;
+      color: white;
+      border: none;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    button:hover {
+      background-color: #4cae4c;
+    }
+
+    .checkbox-group {
+      display: flex;
+      flex-wrap: wrap;
+    }
+
+    .checkbox-group div {
+      margin-right: 10px;
+      margin-bottom: 10px;
+    }
+
+    .amortization-list {
+      list-style-type: none;
+      padding: 0;
+    }
+
+    .amortization-list li {
+      background-color: #eee;
+      padding: 10px;
+      margin: 5px 0;
+      border-radius: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .delete-btn {
+      background-color: #d9534f;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      cursor: pointer;
+      border-radius: 4px;
+      width: 56px;
+      /* Aproximadamente 2 cm */
+    }
+
+    .delete-btn:hover {
+      background-color: #c9302c;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Controle de Pagamento de Imóvel</h1>
+
+  <div class="container" id="step1">
+    <h2>Informações do Imóvel</h2>
+    <label for="totalValue">Valor Total do Imóvel:</label>
+    <input type="number" id="totalValue" oninput="saveData()">
+
+    <label for="downPayment">Valor da Entrada:</label>
+    <input type="number" id="downPayment" oninput="saveData()">
+
+    <label for="amortization">Valor da Amortização:</label>
+    <input type="number" id="amortization">
+
+    <button onclick="addAmortization()">Adicionar Amortização</button>
+
+    <ul class="amortization-list" id="amortizationList"></ul>
+
+    <button onclick="updateInstallmentList()">Atualizar Parcelas</button>
+  </div>
+
+  <div class="container" id="step2">
+    <h2>Número de Parcelas</h2>
+    <div class="checkbox-group" id="installmentList"></div>
+  </div>
+
+  <div class="container" id="step3">
+    <h2>Resultado</h2>
+    <p id="result"></p>
+
+    <button onclick="calculate()">Calcular</button>
+  </div>
+
+  <script>
+    const numInstallments = 48;
+    const installmentValue = 1050;
+    let totalValue, downPayment;
+    let amortizations = [];
+
+    document.addEventListener('DOMContentLoaded', (event) => {
+      loadSavedData();
+      updateInstallmentList();
+    });
+
+    function saveData() {
+      totalValue = parseFloat(document.getElementById('totalValue').value) || 0;
+      downPayment = parseFloat(document.getElementById('downPayment').value) || 0;
+
+      let installmentsPaid = [];
+      for (let i = 1; i <= numInstallments; i++) {
+        if (document.getElementById(`installment${i}`).checked) {
+          installmentsPaid.push(i);
+        }
+      }
+
+      const data = {
+        totalValue: totalValue,
+        downPayment: downPayment,
+        amortizations: amortizations,
+        installmentsPaid: installmentsPaid
+      };
+
+      localStorage.setItem('imovelData', JSON.stringify(data));
+    }
+
+    function loadSavedData() {
+      const data = JSON.parse(localStorage.getItem('imovelData'));
+      if (data) {
+        document.getElementById('totalValue').value = data.totalValue || '';
+        document.getElementById('downPayment').value = data.downPayment || '';
+        amortizations = data.amortizations || [];
+        updateAmortizationList();
+
+        setTimeout(() => {
+          data.installmentsPaid.forEach((i) => {
+            document.getElementById(`installment${i}`).checked = true;
+          });
+        }, 100); // Delay to ensure checkboxes are created before setting their state
+      }
+    }
+
+    function updateInstallmentList() {
+      totalValue = parseFloat(document.getElementById('totalValue').value) || 0;
+      downPayment = parseFloat(document.getElementById('downPayment').value) || 0;
+
+      if (totalValue <= 0 || downPayment < 0 || downPayment >= totalValue) {
+        alert("Por favor, insira valores válidos.");
+        return;
+      }
+
+      let installmentList = document.getElementById('installmentList');
+      installmentList.innerHTML = '';
+      for (let i = 1; i <= numInstallments; i++) {
+        let div = document.createElement('div');
+        let checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = `installment${i}`;
+        checkbox.value = i;
+        checkbox.addEventListener('change', saveData);
+        div.appendChild(checkbox);
+
+        let label = document.createElement('label');
+        label.htmlFor = `installment${i}`;
+        label.innerText = `${i}`;
+        div.appendChild(label);
+
+        installmentList.appendChild(div);
+      }
+
+      saveData();
+    }
+
+    function addAmortization() {
+      let amortization = parseFloat(document.getElementById('amortization').value);
+      if (isNaN(amortization) || amortization <= 0) {
+        alert("Por favor, insira um valor de amortização válido.");
+        return;
+      }
+
+      amortizations.push(amortization);
+      document.getElementById('amortization').value = '';
+      updateAmortizationList();
+      saveData();
+    }
+
+    function removeAmortization(index) {
+      amortizations.splice(index, 1);
+      updateAmortizationList();
+      saveData();
+    }
+
+    function updateAmortizationList() {
+      let amortizationList = document.getElementById('amortizationList');
+      amortizationList.innerHTML = '';
+      amortizations.forEach((amortization, index) => {
+        let li = document.createElement('li');
+        li.innerText = `Amortização ${index + 1}: R$ ${amortization.toFixed(2)}`;
+
+        let deleteBtn = document.createElement('button');
+        deleteBtn.className = 'delete-btn';
+        deleteBtn.innerText = 'Excluir';
+        deleteBtn.onclick = () => removeAmortization(index);
+        li.appendChild(deleteBtn);
+
+        amortizationList.appendChild(li);
+      });
+    }
+
+    function calculate() {
+      let installmentsPaid = [];
+      for (let i = 1; i <= numInstallments; i++) {
+        if (document.getElementById(`installment${i}`).checked) {
+          installmentsPaid.push(i);
+        }
+      }
+
+      let totalAmortization = amortizations.reduce((a, b) => a + b, 0);
+      let totalPaid = installmentsPaid.length * installmentValue;
+      let remainingDebt = totalValue - downPayment - totalPaid - totalAmortization;
+
+      document.getElementById('result').innerText = `
+                Valor Total Pago: R$ ${(totalPaid + downPayment + totalAmortization).toFixed(2)}
+                \nSaldo Devedor: R$ ${remainingDebt.toFixed(2)}
+            `;
+
+      saveData();
+    }
+  </script>
+</body>
+
+</html>
